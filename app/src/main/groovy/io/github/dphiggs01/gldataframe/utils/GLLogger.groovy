@@ -1,5 +1,6 @@
 package io.github.dphiggs01.gldataframe.utils
 
+import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 import io.github.dphiggs01.gldataframe.utils.GLLogger
 
@@ -28,7 +29,8 @@ class GLLogger {
     private LogLevel level
 
     private GLLogger(String directoryRoot, String loggerName) {
-        def timestamp = new Date().format('yyyy-MM-dd_HH-mm-ss')
+        String dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        def timestamp = new Date().format(dateFormat)
         def logFileNm = directoryRoot + "/"+loggerName+"-" + timestamp + ".txt"
         this.loggerName = loggerName
         this.logFile = new File(logFileNm)

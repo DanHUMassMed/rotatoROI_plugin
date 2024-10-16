@@ -30,6 +30,8 @@ dependencies {
 
     implementation 'org.codehaus.groovy:groovy:3.0.4'
 
+    implementation group: 'org.apache.commons', name: 'commons-imaging', version: '1.0.0-alpha5'
+
     implementation group: 'org.scijava', name: 'pom-scijava', version: '33.0.0', ext: 'pom'
 
     implementation group: 'net.imagej', name: 'ij', version: '1.54f'
@@ -41,6 +43,7 @@ dependencies {
     //implementation group: 'org.jfree', name: 'jfreechart', version: '1.5.3'
 
     //implementation group: 'org.jfree', name: 'jcommon', version: '1.0.24'
+    
 
     // Use the awesome Spock testing and specification framework even with Java
     testImplementation libs.spock.core
