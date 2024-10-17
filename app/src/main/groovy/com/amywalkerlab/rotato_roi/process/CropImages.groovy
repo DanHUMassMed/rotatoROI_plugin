@@ -54,7 +54,7 @@ class CropImages extends ProcessDirectory {
                 if(pointRoi != null && pointRoi.getType() == Roi.POINT){
                     done=true
                     IJ.run("Select None");
-                    imp.setRoi(pointRoi.x, pointRoi.y,Integer.parseInt(cropWidth),Integer.parseInt(cropHeight));
+                    imp.setRoi(pointRoi.x, pointRoi.y, Integer.parseInt(cropWidth), Integer.parseInt(cropHeight));
                     FinetuneROI FinetuneROI = new FinetuneROI()
                     FinetuneROI.run()
                     if(FinetuneROI.wasCanceled()){
@@ -67,6 +67,8 @@ class CropImages extends ProcessDirectory {
                         IJ.run("Duplicate...", args);
                         ImagePlus roiImage = IJ.getImage();
                         // Save the ROI as a TIFF file
+                        def croppedBounds = "x="+pointRoi.x+", y="+pointRoi.y+", w="+cropWidth+", h="+cropHeight
+                        editMetadata(roiImage, "Cropped Bounds from Original", croppedBounds )
                         IJ.saveAs(roiImage,"Tiff", outputDir + File.separator + lastDirectory + File.separator + roiTitle)
                         roiImage.close()
                     }

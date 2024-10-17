@@ -30,8 +30,6 @@ dependencies {
 
     implementation 'org.codehaus.groovy:groovy:3.0.4'
 
-    implementation group: 'org.apache.commons', name: 'commons-imaging', version: '1.0.0-alpha5'
-
     implementation group: 'org.scijava', name: 'pom-scijava', version: '33.0.0', ext: 'pom'
 
     implementation group: 'net.imagej', name: 'ij', version: '1.54f'

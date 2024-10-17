@@ -4,27 +4,25 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
-
 import ij.IJ
-import io.github.dphiggs01.gldataframe.GLDataframe
-import io.github.dphiggs01.gldataframe.GLDataframeException
+import ij.ImagePlus
+import ij.util.Tools
+import java.util.Properties
 import io.github.dphiggs01.gldataframe.utils.GLLogger
 
 abstract class ProcessDirectory {
-    //GLLogger logger
+    GLLogger debugLogger
     String directoryRoot
     String inputDir
     String outputDir
     String suffix
 
-    ProcessDirectory(String directoryRoot, String inputDir, String outputDir, String suffix = ".tif") {
-        //this.logger = GLLogger.getLogger("debug", directoryRoot) 
+    ProcessDirectory(String directoryRoot, String inputDirNm, String outputDirNm, String suffix = ".tif") {
+        this.debugLogger = GLLogger.getLogger("debug", directoryRoot)
         this.directoryRoot = directoryRoot
-        this.inputDir = directoryRoot + File.separator + inputDir 
-        this.outputDir = directoryRoot + File.separator + outputDir
+        this.inputDir = directoryRoot + File.separator + inputDirNm 
+        this.outputDir = directoryRoot + File.separator + outputDirNm
         this.suffix = suffix
-        //this.stillToProcess = new ArrayList<>()
-        //this.toBeRemoved = new ArrayList<>()
         
         def inputDirExists = new File(this.inputDir).isDirectory()
         def outputDirExists = new File(this.outputDir).isDirectory()
@@ -33,7 +31,7 @@ abstract class ProcessDirectory {
 		} else if (!outputDirExists){
 			def dir = new File(this.outputDir)
             dir.mkdirs()
-		} else {
+        }else{
             compareSubdirectories(this.inputDir, this.outputDir)
         }
     }
@@ -50,14 +48,14 @@ abstract class ProcessDirectory {
     }
 
     // Groovy-specific method to delete a directory and its contents
-    void deleteUnkownDirectory(String dirPath) {
-        def dir = new File(dirPath)
+    void deleteUnkownDirectory(String unknownDir) {
+        def dir = new File(unknownDir)
         if (dir.exists()) {
-            dir.deleteDir()  // Deletes the directory and all its contents
+            dir.deleteDir()  
         }
     }
 
-    // Function to compare directories and delete subdirectories in 'save' that are not in 'master'
+    // Function to compare directories and delete subdirectories in 'outputDir' that are not in 'inputDir'
     Set<String> compareSubdirectories(String inputDir, String outputDir) throws IOException {
         Path inputPath = Paths.get(inputDir)
         Path outputPath = Paths.get(outputDir)
@@ -66,20 +64,20 @@ abstract class ProcessDirectory {
         List<Path> inputSubDirs = getImmediateSubdirectories(inputPath)
         List<Path> outputSubDirs = getImmediateSubdirectories(outputPath)
 
-        // Create a set of subdirectory names in master for easier comparison
-        Set<String> masterSubDirNames = new HashSet<>()
-        for (Path subDir : inputSubDirs) {
-            masterSubDirNames.add(subDir.getFileName().toString())
+        // Create a set of subdirectory names in primary subdirectory for easier comparison
+        Set<String> primarySubDirNames = new HashSet<>()
+        for (Path subDirPath : inputSubDirs) {
+            primarySubDirNames.add(subDirPath.getFileName().toString())
         }
 
-        // Check save subdirectories and delete those not in master
-        for (Path inputSubDir : outputSubDirs) {
-            if (!masterSubDirNames.contains(inputSubDir.getFileName().toString())) {
-                deleteUnkownDirectory(inputSubDir.toString())  // Use the full path as a string
-                println "Deleted directory: $inputSubDir"
+        // Check save subdirectories and delete those not in primary
+        for (Path inputSubDirPath : outputSubDirs) {
+            if (!primarySubDirNames.contains(inputSubDirPath.getFileName().toString())) {
+                deleteUnkownDirectory(inputSubDirPath.toString())  // Use the full path as a string
+                println "Deleted directory: $inputSubDirPath"
             }
         }
-        return masterSubDirNames
+        return primarySubDirNames
     }
 
     // Finished setup
@@ -108,54 +106,51 @@ abstract class ProcessDirectory {
         }
     }
 
-    // method to compare directories and populate the lists
-    List<String> compareDirectories(String masterDirPath, String slaveDirPath) throws IOException {
+    // Compare directories and create a list of files to process
+    List<String> compareDirectories(String primaryDir, String secondaryDir) throws IOException {
         List<String> stillToProcess;
          List<String> toBeRemoved;
-        Path masterPath = Paths.get(masterDirPath);
-        Path slavePath = Paths.get(slaveDirPath);
+        Path primaryPath = Paths.get(primaryDir);
+        Path secondaryPath = Paths.get(secondaryDir);
         
-        String prefixName = slavePath.getName(slavePath.getNameCount() - 2).toString();
+        String prefixName = secondaryPath.getName(secondaryPath.getNameCount() - 2).toString();
 
         // Get the list of .tif files in both directories
-        List<String> masterFiles = getTifFilesFromDir(masterPath);
-        List<String> slaveFiles = getTifFilesFromDir(slavePath);
+        List<String> primaryFiles = getTifFilesFromDir(primaryPath);
+        List<String> secondaryFiles = getTifFilesFromDir(secondaryPath);
 
         List<String> updatedSlaveFileNames = new ArrayList<>();
-        for (String fileName : slaveFiles) {
+        for (String fileName : secondaryFiles) {
             // Remove the "rotated_" prefix if it exists
             updatedSlaveFileNames.add(fileName.replaceFirst("^"+prefixName+"_", ""));
         }
 
         // Convert lists to sets for easier comparison
-        Set<String> masterFileSet = new HashSet<>(masterFiles);
-        Set<String> slaveFileSet = new HashSet<>(updatedSlaveFileNames);
+        Set<String> primaryFileSet = new HashSet<>(primaryFiles);
+        Set<String> secondaryFileSet = new HashSet<>(updatedSlaveFileNames);
 
         // Populate the instance variables with full paths
-        stillToProcess = new ArrayList<>(masterFileSet);
-        stillToProcess.removeAll(slaveFileSet);
+        stillToProcess = new ArrayList<>(primaryFileSet);
+        stillToProcess.removeAll(secondaryFileSet);
 
-        toBeRemoved = new ArrayList<>(slaveFileSet);
-        toBeRemoved.removeAll(masterFileSet);
-        println("toBeRemoved="+toBeRemoved)
+        toBeRemoved = new ArrayList<>(secondaryFileSet);
+        toBeRemoved.removeAll(primaryFileSet);
 
         deleteUnknownFiles(toBeRemoved);
-        println("stillToProcess size="+stillToProcess.size());
-        println("stillToProcess="+stillToProcess)
 
         return stillToProcess
     }
 
-    List<String> listNextLevelDirectories(String dirPath) {
+    List<String> listNextLevelDirectories(String topLevelDir) {
         List<String> nextLevelDirs = new ArrayList<>();
-        Path parentDir = Paths.get(dirPath);
+        Path parentDirPath = Paths.get(topLevelDir);
 
         // Check if the directory exists and is indeed a directory
-        if (Files.exists(parentDir) && Files.isDirectory(parentDir)) {
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(parentDir)) {
-                for (Path entry : stream) {
-                    if (Files.isDirectory(entry)) {
-                        nextLevelDirs.add(entry.toAbsolutePath().toString()); 
+        if (Files.exists(parentDirPath) && Files.isDirectory(parentDirPath)) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(parentDirPath)) {
+                for (Path entryPath : stream) {
+                    if (Files.isDirectory(entryPath)) {
+                        nextLevelDirs.add(entryPath.toAbsolutePath().toString()); 
                     }
                 }
             } catch (IOException e) {
@@ -186,25 +181,22 @@ abstract class ProcessDirectory {
 
         for (int i = 0; i < nextLevelDirectories.size(); i++) {
             def dirPath = nextLevelDirectories[i]
-            //def list = (new File(dirPath)).listFiles().findAll { file ->
-            //    file.name.endsWith(suffix)  // Filter files based on suffix
-            //}
 
             // Make the output directory
-            def lastDirectory = new File(dirPath).name
+            def lastDir = new File(dirPath).name
 
-            def outputDirExp = new File(outputDir + File.separator + lastDirectory)
-            outputDirExp.mkdirs()
-            def list = compareDirectories(dirPath, outputDirExp.getAbsolutePath())
+            def outputExpDirPath = new File(outputDir + File.separator + lastDir)
+            outputExpDirPath.mkdirs()
+            def list = compareDirectories(dirPath, outputExpDirPath.getAbsolutePath())
 
 
             int num_items = list.size()  // Total number of matching files
 
             // Create the subdirectory and process files
             for (int index = 0; index < num_items; index++) {
-                def file = list[index]
+                def fileNm = list[index]
                 int item_num = index + 1  // Current file's position (1-based index)
-                terminateProcess = processFile(new File(dirPath+ File.separator +file), item_num, num_items)
+                terminateProcess = processFile(new File(dirPath + File.separator + fileNm), item_num, num_items)
                 if (terminateProcess) return terminateProcess
             }
         }
@@ -212,10 +204,37 @@ abstract class ProcessDirectory {
         return terminateProcess      
     }
 
-    protected boolean processFile_test(File file, int item_num, int num_items){
-        println("file="+file+" item_num="+item_num+" num_items="+num_items)
-        return false
+
+
+    // This Groovy script allows to add/edit metadata associated with an image
+    // Save the image as Tiff if you want to retain metadata
+
+    void editMetadata(ImagePlus imp, String name, String value ) {        
+        // Get the metadata from the image (in the form of "Info")
+        String metadata = imp.getProperty("Info")
+        debugLogger.log("editMetadata "+name+" "+value )
+        if (metadata != null) {
+            debugLogger.log("Has Metadata!! "+name+" "+value )
+            Properties props = new Properties()
+            // Load the metadata into the Properties object
+            props.load(new StringReader(metadata))
+
+            // Add a new key-value pair (or update it)
+            props.setProperty(name, value)
+
+            // Save the updated metadata back to the image
+            StringWriter writer = new StringWriter()
+            props.store(writer, null)
+            imp.setProperty("Info", writer.toString())
+        }
     }
+
+
+    //Used for testing
+    // protected boolean processFile_test(File file, int item_num, int num_items){
+    //     println("file="+file+" item_num="+item_num+" num_items="+num_items)
+    //     return false
+    // }
 
     // Abstract method to be implemented by subclasses
     protected abstract boolean processFile(File file, int item_num, int num_items)

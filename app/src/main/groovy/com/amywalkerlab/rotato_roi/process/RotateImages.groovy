@@ -6,7 +6,6 @@ import ij.WindowManager
 import ij.gui.Roi
 
 import com.amywalkerlab.rotato_roi.process.WaitForUserDialog
-import com.amywalkerlab.rotato_roi.process.TIFFMetadata
 
 class RotateImages extends ProcessDirectory {
     String outputDir
@@ -58,13 +57,12 @@ class RotateImages extends ProcessDirectory {
                     def fileName = imp.getTitle();
                     fileName = "rotated_" + fileName
                     def fullPath = outputDir + File.separator + lastDirectory + File.separator + fileName
-                    IJ.saveAs("Tiff", fullPath)
-                    // tiffMetadata = new TIFFMetadata(fullPath)
-                    // print(tiffMetadata.getMetadata())
-                    // tiffMetadata.setMetadata("Degrees of Rotation from Original", angle.toString())
-                    // tiffMetadata.writeMetadata()
-
                     def roundedAngle = String.format("%.2f", angle)
+                    editMetadata(imp, "Angle of rotations", roundedAngle )
+                    IJ.saveAs("Tiff", fullPath)
+                    
+
+                    
                     IJ.showMessage("Measured Angle", "The angle of rotations is: " + roundedAngle + " degrees.")
                 }else{
                     ud = new WaitForUserDialog("Draw a Line", "     Processing "+item_num+" of "+num_items+" in "+lastDirectory+"\n\nPlease draw a line on the image.\nAnd Clicked OK to continue or Cancel to End Processing.")
